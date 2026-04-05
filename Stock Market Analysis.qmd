@@ -1,0 +1,100 @@
+---
+title: "Stock Market Analysis"
+format: html
+author: Lakin Schoenthaler
+---
+
+## Introduction
+
+In this project, I analyze stock price data to understand trends, returns, and volatility. I focus on comparing multiple stocks to evaluate their performance over time.
+
+## Data
+
+The data is pulled from Yahoo Finance using the quantmod package in R.
+
+```{r message=FALSE, warning=FALSE, results=FALSE}
+library(quantmod)
+library(tidyverse)
+getSymbols(c("AAPL", "TSLA", "SPY"), src = "yahoo", from = "2020-01-01")
+```
+
+## Data Preparation
+
+```{r}
+# Create Dataframes
+aapl <- data.frame(date = index(AAPL), coredata(AAPL))
+tsla <- data.frame(date = index(TSLA), coredata(TSLA))
+spy  <- data.frame(date = index(SPY), coredata(SPY))
+
+# Calculate Returns
+aapl <- aapl %>% mutate(return = (AAPL.Adjusted / lag(AAPL.Adjusted)) - 1)
+tsla <- tsla %>% mutate(return = (TSLA.Adjusted / lag(TSLA.Adjusted)) - 1)
+spy  <- spy  %>% mutate(return = (SPY.Adjusted / lag(SPY.Adjusted)) - 1)
+
+# Normalize Price
+aapl <- aapl %>%
+  mutate(norm_price = AAPL.Adjusted / first(AAPL.Adjusted))
+
+tsla <- tsla %>%
+  mutate(norm_price = TSLA.Adjusted / first(TSLA.Adjusted))
+
+spy <- spy %>%
+  mutate(norm_price = SPY.Adjusted / first(SPY.Adjusted))
+```
+
+```{r echo=FALSE}
+# Add Stock Labels
+aapl$stock <- "AAPL"
+tsla$stock <- "TSLA"
+spy$stock  <- "SPY"
+# Combine Datasets
+all_data <- bind_rows(aapl, tsla, spy)
+```
+
+## Analysis
+
+### Normalized Price Comparison
+
+```{r}
+ggplot(all_data, aes(x = date, y = norm_price, color = stock)) +
+  geom_line() +
+  labs(
+    title = "Normalized Stock Prices",
+    x = "Date",
+    y = "Growth of $1",
+    color = "Stock"
+  )
+```
+
+### Compare Returns (Volatility Over Time)
+
+```{r warning=FALSE, message=FALSE}
+ggplot(all_data, aes(x = date, y = return, color = stock)) +
+  geom_line(size = 1, alpha = 0.5) +
+  labs(
+    title = "Stock Returns Comparison",
+    x = "Date",
+    y = "Daily Return",
+    color = "Stock"
+  )
+```
+
+### Summary Statistics
+
+```{r}
+all_data %>%
+  group_by(stock) %>%
+  summarize(
+    avg_return = round(mean(return, na.rm = TRUE) * 100, 3),
+    volatility = round(sd(return, na.rm = TRUE) * 100, 2)
+)
+# Display results in format of percentages
+```
+
+#### Interpretation
+
+Volatility, measured as the standard deviation of returns, represents how widely returns deviate from their average, providing a numerical measure of risk. Tesla has the highest average daily return (approximately 0.25%), but also the highest volatility (about 4.1%), indicating larger fluctuations in price and greater risk. Apple falls in the middle, with moderate returns and volatility. SPY has the lowest average return (around 0.06%) and the lowest volatility (approximately 1.3%), reflecting more stable performance. These results quantitatively support the earlier visual analysis, demonstrating that higher returns are associated with higher volatility.
+
+## Conclusion
+
+This analysis shows how stock prices and returns change over time. Differences in volatility and trends can help evaluate investment decisions. When plotting prices, I normalized prices to compare relative growth across stocks starting from the same baseline. Tesla exhibited the greatest overall growth over the selected time period, as shown by the normalized price analysis. This growth however was matched with significantly higher volatility compared to Apple and the S&P 500, indicating greater risk. In contrast, SPY showed lower volatility with more stable returns. This highlights the trade off between risk and return. \n I used standard deviation of daily returns as a measure of volatility, allowing me to quantitatively compare risk across stocks.
